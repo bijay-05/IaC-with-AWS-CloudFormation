@@ -1,0 +1,211 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description:  This template creates a new ec2 EC2
+Parameters:
+  Environment:
+    Type: String
+    Description: 'staging, preproduction, or production'
+    Default: staging
+    AllowedValues:
+      - staging
+      - preproduction
+      - production
+  PrivateSubnet:
+    Description: Specify the Subnet Id e.g. id-a for SubnetA
+    Type: String
+    Default: id-a
+    AllowedValues:
+      - id-a
+      - id-b
+      - id-c
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.medium
+  NodeName:
+    Description: "Specify the Node's Name keep in mind that the resulting name will follow this convention: staging-infrastructure-ec2-1"
+    Type: String
+    Default: ec2
+  NodeId:
+    Description: Specify the Node Number Id e.g. 1 for Node1
+    Type: String
+    Default: 1
+  DiskSize:
+    Description: EC2 Selected Disk Size
+    Type: String
+    Default: 40
+  DNSZoneId:
+    Description: Specify the DNSZone  Id e.g. Z0177864RGEW5HYK40Z5
+    Type: String
+  DNSDomainName: 
+    Description: Specify the DNSZone  Name e.g. 
+    Type: String
+    Default: staging.internal.services.com
+Mappings:
+    RegionToAmazonAMI:
+      eu-central-1:
+        HVM64: ami-image-id
+Resources:
+    SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: !Join [ "-", [ !Ref Environment, !Ref "AWS::Region", infrastructure-security-group-ec2-all] ]
+        GroupName: !Join [ "-", [ !Ref Environment, !Ref "AWS::Region", infrastructure-security-group-ec2-all] ]
+        SecurityGroupEgress:
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: "-1"
+        SecurityGroupIngress:
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: tcp
+            FromPort: 1936
+            ToPort: 1936  
+        Tags:
+          - Key: "Environment"
+            Value: !Ref Environment 
+        VpcId: !ImportValue ExportedVpcId
+    # One Node ec2 Linux Instance 
+    InfraEC2Node:
+      Type: AWS::EC2::Instance
+      DependsOn: SecurityGroup
+      CreationPolicy:
+        ResourceSignal:
+          Count: 1
+          Timeout: PT30M
+      Metadata:
+        'AWS::CloudFormation::Init':
+          configSets:
+                Provisioning:
+                  - PrepHaproxySteps
+          PrepHaproxySteps:
+            files:
+              /root/prep-ec2-script.sh:
+                content: !Sub |
+                    #!/bin/bash
+                    ip=$(hostname -I)
+                    echo "$ip  $HOSTNAME " >>/etc/hosts
+                    chmod 0700 /root/.ssh/
+                    echo "$SSHKEY" > /root/.ssh/HAProxy_ssh_key
+                    echo "$PUBSSHKEY" >> /root/.ssh/authorized_keys
+                    chmod 0600 /root/.ssh/HAProxy_ssh_key
+                    chmod 0600 /root/.ssh/authorized_keys
+                env: 
+                  SSHKEY: !Sub "{{resolve:ssm:/${Environment}/infrastructure/aws/ec2/rabbitmq_ssh_key}}"
+                  PUBSSHKEY: !Sub "{{resolve:ssm:/${Environment}/infrastructure/aws/ec2/rabbitmq_ssh_key-pub}}"
+                  HOSTNAME: !Sub  "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+                mode: '000755'
+                owner: root
+                group: root
+            commands: 
+              runPrepScript: 
+                command: 'sh  /root/prep-ec2-script.sh'
+                env: 
+                  SSHKEY: !Sub "{{resolve:ssm:/${Environment}/infrastructure/aws/ec2/rabbitmq_ssh_key}}"
+                  PUBSSHKEY: !Sub "{{resolve:ssm:/${Environment}/infrastructure/aws/ec2/rabbitmq_ssh_key-pub}}"
+                  HOSTNAME: !Sub  "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+                cwd: "~"
+                ignoreErrors: "false"
+      Properties:
+        ImageId:
+          Fn::FindInMap:
+            - RegionToAmazonAMI
+            - Ref: 'AWS::Region'
+            - HVM64
+        InstanceInitiatedShutdownBehavior: stop
+        InstanceType: !Ref InstanceType 
+        Tags: 
+          - Key: "Name"
+            Value: !Sub "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+        BlockDeviceMappings:
+          - DeviceName: "/dev/sda1"
+            Ebs:
+              DeleteOnTermination: 'true'
+              VolumeSize: !Ref DiskSize
+              VolumeType: gp2
+        Monitoring: 'true'
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: 'false'
+            DeviceIndex: '0'
+            GroupSet:
+              - !Ref SecurityGroup
+              - !Sub "{{resolve:ssm:/${Environment}/infrastructure/aws/vpc/security-group/ec2/all}}"
+            SubnetId: !Join [ '', [ !Sub '{{resolve:ssm:/', !Sub '${Environment}', '/infrastructure/aws/vpc/subnet/private/', !Sub '${PrivateSubnet}', '}}'] ]
+        Tenancy: default
+        UserData:
+            Fn::Base64: !Sub |
+                #cloud-config
+                repo_update: true
+                repo_upgrade: all
+                hostname:  "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+                write_files:
+                    - content: |
+                        #!/bin/bash
+                        /opt/aws/bin/cfn-init -v  --stack ${AWS::StackName} --resource InfraEC2Node --configsets  HAProxyProvisioning  --region ${AWS::Region}
+                        /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource InfraEC2Node  --region ${AWS::Region}
+                      owner: root:root
+                      path: /root/call-cfn-init.sh
+                      permissions: '0700'     
+                runcmd:
+                  - [ sh, -c , "/root/call-cfn-init.sh" ]
+    InfraEC2NodePrivIpOnSSM:
+      Type: AWS::SSM::Parameter
+      DependsOn: InfraEC2Node
+      Properties:
+        Name: !Sub /${Environment}/infrastructure/aws/ec2/node-${NodeId}/ip
+        Type: String
+        Value: !Sub ${InfraEC2Node.PrivateIp}
+    InfraEC2NodeHostnameOnSSM:
+      Type: AWS::SSM::Parameter
+      DependsOn: InfraEC2Node
+      Properties:
+        Name: !Sub /${Environment}/infrastructure/aws/ec2/node-${NodeId}/hostname
+        Type: String
+        Value: !Sub  "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+    InfraNodeEC2IDOnSSM:
+      Type: AWS::SSM::Parameter
+      DependsOn: InfraEC2Node
+      Properties:
+        Name: !Sub /${Environment}/infrastructure/aws/ec2/node-${NodeId}/instance-id
+        Type: String
+        Value: !Ref InfraEC2Node
+    InfraSecurityGroupOnSSM:
+      Type: AWS::SSM::Parameter
+      DependsOn: InfraEC2Node
+      Properties:
+        Name: !Sub /${Environment}/infrastructure/aws/ec2/security/group/1
+        Type: String
+        Value: !Ref SecurityGroup
+    InfraEC2NodeDNSRecord:
+      Type: AWS::Route53::RecordSet
+      Properties:
+        HostedZoneId: !Ref DNSZoneId
+        Name: !Sub "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+        ResourceRecords:
+          - !Sub ${InfraEC2Node.PrivateIp}
+        TTL: 360
+        Type: A
+Outputs:
+    InfraEC2NodeId: 
+        Description: 'The ID of EC2 Instance' 
+        Value:  !Ref InfraEC2Node
+        Export:
+          Name: !Sub "ExportedEC2NodeID-${NodeId}"
+    InfraEC2NodeHostname: 
+        Description: 'The Hostname of ec2 EC2 Instance' 
+        Value: !Sub "${Environment}-${AWS::Region}-infrastructure-${NodeName}-node-${NodeId}"
+        Export:
+          Name: !Sub "ExportedEC2Hostname-${NodeId}"
