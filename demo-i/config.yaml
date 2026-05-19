@@ -1,0 +1,18 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates a new VPC, subnets, route tables and security groups
+
+# Parameter of Type: SecureString cannot be created through CloudFormation
+
+Resources:
+  AppPortParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: APP_PORT
+      Type: String
+      Value: 3001
+  AppHostParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: APP_HOST
+      Type: String
+      Value: 0.0.0.0
