@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Main stack
+
+Parameters:
+  # Global parameters
+  CfnBucketUrl:
+    Description: S3 bucket URL to locate the nested stack CFN template files
+    Type: String
+
+  Environment:
+    Type: String
+    Description: Environment name such as dev, prod. This will be prefixed to all resource names
+
+  # Network parameters
+  VpcBlock:
+    Type: String
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  PublicSubnetBlock:
+    Type: String
+    Description: CidrBlock for public subnet 01 within the VPC
+
+  # Compute Parameters
+
+Resources:
+  IamStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["/", [!Ref CfnBucketUrl, iam.yaml]]
+      Parameters:
+        Environment: !Ref Environment
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["/", [!Ref CfnBucketUrl, network.yaml]]
+      Parameters:
+        Environment: !Ref Environment
+        VpcBlock: !Ref VpcBlock
+        PublicSubnetBlock: !Ref PublicSubnetBlock
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["/", [!Ref CfnBucketUrl, compute.yaml]]
+      Parameters:
+        NodeInstanceRole: !GetAtt IamStack.Outputs.NodeInstanceRole
+        PublicSubnet01: !GetAtt NetworkStack.Outputs.PublicSubnet01
+
+        ControlPlaneSecurityGroup: !GetAtt NetworkStack.Outputs.ControlPlaneSecurityGroup
