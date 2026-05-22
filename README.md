@@ -140,6 +140,17 @@ aws cloudformation describe-stacks --stack-name test-vpc-stack \
 aws cloudformation describe-stacks --stack-name test-vpc-stack \
     --query 'Stacks[0].Outputs'
 
+## get stack status
+aws cloudformation describe-stacks --stack-name test-vpc-stack \
+    --query 'Stacks[0].StackStatus'
+
 ## delete the stack
 aws cloudformation delete-stack --stack-name test-vpc-stack
+
+## create change-set to preview changes before updating stack
+aws cloudformation create-change-set --stack-name test-vpc-stack --change-set-name change-set-1 --template-body file://test-network.yaml
+
+## execute change-set after review
+aws cloudformation execute-change-set --change-set-name change-set-2 --stack-name test-stack-vpc
+
 ```
