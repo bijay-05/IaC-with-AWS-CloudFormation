@@ -44,7 +44,5 @@ Resources:
     Properties:
       TemplateURL: !Join ["/", [!Ref CfnBucketUrl, compute.yaml]]
       Parameters:
-        NodeInstanceRole: !GetAtt IamStack.Outputs.NodeInstanceRole
-        PublicSubnet01: !GetAtt NetworkStack.Outputs.PublicSubnet01
-
-        ControlPlaneSecurityGroup: !GetAtt NetworkStack.Outputs.ControlPlaneSecurityGroup
+        InstanceSecurityGroup: !GetAtt NetworkStack.Outputs.InstanceSecurityGroup
+        PublicSubnet: !GetAtt NetworkStack.Outputs.PublicSubnet

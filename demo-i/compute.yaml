@@ -3,6 +3,9 @@ Description: This template creates a new VPC, subnets, route tables and security
 
 Parameters:
   InstanceSecurityGroup: string
+  PublicSubnet: string
+  InstaceType: string
+  KeyName: string
 
 Mappings:
   AWSInstanceType2Arch:
