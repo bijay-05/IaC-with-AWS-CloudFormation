@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates a new VPC, subnets, route tables and security groups
+
+Parameters:
+  VpcBlock:
+    Type: String
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+    Default: 10.1.0.0/16
+  PublicSubnetBlock:
+    Type: String
+    Description: The CidrBlock for public subnet within the VPC
+    Default: 10.1.1.0/24
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PublicSubnetBlock
+      VpcId: !Ref VPC
+
+Outputs:
+  PublicSubnet:
+    Value: !Ref PublicSubnet

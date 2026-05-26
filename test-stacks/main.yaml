@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Main stack
+
+Parameters:
+  # Global parameters
+  CfnBucketUrl:
+    Description: S3 bucket URL to locate the nested stack CFN template files
+    Type: String
+    Default: https://<BUCKETNAME>.s3.<AWSREGION>.amazonaws.com
+
+Resources:
+  ConfigStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["/", [!Ref CfnBucketUrl, config.yaml]]
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["/", [!Ref CfnBucketUrl, network.yaml]]
