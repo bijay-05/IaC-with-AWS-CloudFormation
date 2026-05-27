@@ -6,19 +6,28 @@ Parameters:
   CfnBucketUrl:
     Description: S3 bucket URL to locate the nested stack CFN template files
     Type: String
+    Default: "https://<BUCKET_NAME>.s3.<REGION>.amazonaws.com"
 
   Environment:
     Type: String
     Description: Environment name such as dev, prod. This will be prefixed to all resource names
+    Default: "dev"
 
   # Network parameters
   VpcBlock:
     Type: String
     Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+    Default: 10.2.0.0/16
 
   PublicSubnetBlock:
     Type: String
-    Description: CidrBlock for public subnet 01 within the VPC
+    Description: CidrBlock for public subnet within the VPC
+    Default: 10.2.1.0/24
+
+  ServerInstanceType:
+    Type: String
+    Description: Instance type of the web Server
+    Default: "t2.micro"
 
   # Compute Parameters
 
@@ -27,8 +36,6 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Join ["/", [!Ref CfnBucketUrl, iam.yaml]]
-      Parameters:
-        Environment: !Ref Environment
 
   NetworkStack:
     Type: AWS::CloudFormation::Stack
@@ -46,3 +53,4 @@ Resources:
       Parameters:
         InstanceSecurityGroup: !GetAtt NetworkStack.Outputs.InstanceSecurityGroup
         PublicSubnet: !GetAtt NetworkStack.Outputs.PublicSubnet
+        InstanceType: !Ref ServerInstanceType

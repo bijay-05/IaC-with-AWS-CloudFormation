@@ -1,11 +1,20 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: This template creates a new VPC, subnets, route tables and security groups
+Description: This template creates an EC2 instance for compute requirements.
 
 Parameters:
-  InstanceSecurityGroup: string
-  PublicSubnet: string
-  InstaceType: string
-  KeyName: string
+  InstanceSecurityGroup:
+    Type: String
+    Description: Security group of the web server, for allowing and restricting network traffic
+  PublicSubnet:
+    Type: String
+    Description: Subnet Id of the server
+  InstanceType:
+    Type: String
+    Description: Type of EC2 instance
+  DiskSize:
+    Description: EC2 Selected Disk Size
+    Type: String
+    Default: 40
 
 Mappings:
   AWSInstanceType2Arch:
@@ -20,25 +29,53 @@ Mappings:
     ap-south-1:
       HVM64: ami-0c125b398a90e162f
 
-MyEC2Instance:
-  Type: AWS::EC2::Instance
-  Properties:
-    ImageId:
-      !FindInMap [
-        AWSRegionArch2AMI,
-        !Ref "AWS::Region",
-        !FindInMap [AWSInstanceType2Arch, !Ref InstanceType, Arch],
-      ]
-    InstanceType: !Ref InstanceType
-    KeyName: !Ref KeyName
-    SubnetId: !Ref PublicSubnet
-    SecurityGroupIds:
-      - !Ref InstanceSecurityGroup
-    UserData:
-      Fn::Base64: !Sub |
-        #!/bin/bash
-        apt update -y
-        apt install -y nginx
-        systemctl start nginx
-        systemctl enable nginx
-        echo "<h1>Hello from CloudFormation!</h1>" > /var/www/html/index.html
+Resources:
+  WebServerKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: WebServerKey
+      PublicKeyMaterial: <PUBLIC_KEY>
+
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        !FindInMap [
+          AWSRegionArch2AMI,
+          !Ref "AWS::Region",
+          !FindInMap [AWSInstanceType2Arch, !Ref InstanceType, Arch],
+        ]
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref WebServerKeyPair
+      #SubnetId: !Ref PublicSubnet ## DONOT SPECIFY WHEN SPECIFIED AT NETWORK INTERFACE
+      #SecurityGroupIds: ## SAME AS SUBNET ABOVE
+      #- !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            DeleteOnTermination: "true"
+            VolumeSize: !Ref DiskSize
+            VolumeType: gp2
+      Monitoring: "false"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "false"
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref InstanceSecurityGroup
+          SubnetId: !Ref PublicSubnet
+      Tenancy: default
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt update -y
+          apt install -y nginx
+          systemctl start nginx
+          systemctl enable nginx
+          echo "<h1>Hello from CloudFormation!</h1>" > /var/www/html/index.html
+
+Outputs:
+  WebServerInstancePublicDNSName:
+    Description: "Public DNS of Web Server Instance"
+    Value: !GetAtt WebServerInstance.PublicDnsName
+    Export:
+      Name: "WebServerInstancePublicDNS"

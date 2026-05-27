@@ -20,6 +20,9 @@ Resources:
       CidrBlock: !Ref VpcBlock
       EnableDnsSupport: true
       EnableDnsHostnames: true
+      Tags:
+        - Key: "env"
+          Value: !Sub "${Environment}"
 
   PublicSubnet:
     Type: AWS::EC2::Subnet
