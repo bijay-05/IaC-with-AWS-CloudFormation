@@ -15,19 +15,22 @@ Parameters:
     Description: EC2 Selected Disk Size
     Type: String
     Default: 40
+  WebServerIamInstanceProfile:
+    Description: IAM Instance Profile to access SSM service
+    Type: String
 
 Mappings:
   AWSInstanceType2Arch:
-    t2.micro:
+    t3.micro:
       Arch: HVM64
-    t2.small:
+    t3.small:
       Arch: HVM64
-    t2.medium:
+    t3.medium:
       Arch: HVM64
 
   AWSRegionArch2AMI:
     ap-south-1:
-      HVM64: ami-0c125b398a90e162f
+      HVM64: ami-003873912100f1f6f
 
 Resources:
   WebServerKeyPair:
@@ -58,12 +61,13 @@ Resources:
             VolumeType: gp2
       Monitoring: "false"
       NetworkInterfaces:
-        - AssociatePublicIpAddress: "false"
+        - AssociatePublicIpAddress: "true"
           DeviceIndex: "0"
           GroupSet:
             - !Ref InstanceSecurityGroup
           SubnetId: !Ref PublicSubnet
       Tenancy: default
+      IamInstanceProfile: !Ref WebServerIamInstanceProfile
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash

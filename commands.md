@@ -37,7 +37,17 @@ aws cloudformation create-change-set --stack-name test-vpc-stack --change-set-na
 ## execute change-set after review
 aws cloudformation execute-change-set --change-set-name change-set-2 --stack-name test-stack-vpc
 
+aws cloudformation delete-change-set --change-set-name change-set-3 --stack-name test-stack-vpc
+
 ## detect drift in the stack resources
 aws cloudformation detect-stack-drift --stack-name test-stack-vpc
+
+## When creating stacks with templates that include IAM resources
+aws cloudformation create-stack --stack-name dev-env-stack \
+    --template-body file://template.yaml \
+    --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation create-change-set --stack-name teejo-stack \
+    --capabilities CAPABILITY_NAMED_IAM --change-set-name add-iam-roles-ec2-instance \  --template-body file://main.yaml
 
 ```

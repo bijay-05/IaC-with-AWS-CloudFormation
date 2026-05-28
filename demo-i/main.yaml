@@ -27,7 +27,7 @@ Parameters:
   ServerInstanceType:
     Type: String
     Description: Instance type of the web Server
-    Default: "t2.micro"
+    Default: "t3.micro"
 
   # Compute Parameters
 
@@ -54,3 +54,4 @@ Resources:
         InstanceSecurityGroup: !GetAtt NetworkStack.Outputs.InstanceSecurityGroup
         PublicSubnet: !GetAtt NetworkStack.Outputs.PublicSubnet
         InstanceType: !Ref ServerInstanceType
+        WebServerIamInstanceProfile: !GetAtt IamStack.Outputs.IamInstanceProfile

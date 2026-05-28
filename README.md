@@ -154,3 +154,37 @@ aws cloudformation create-change-set --stack-name test-vpc-stack --change-set-na
 aws cloudformation execute-change-set --change-set-name change-set-2 --stack-name test-stack-vpc
 
 ```
+
+## Miscellaneous But Important
+
+In some cases, you must explicitly acknowledge that your stack template contains certain capabilities in order for CloudFormation to create the stack.
+
+- **CAPABILITY_IAM** And **CAPABILITY_NAMED_IAM**
+
+Some stack templates might include resources that can affect permissions in your AWS account; for example, by creating new IAM users. For those stacks, you must explicitly acknowledge this by specifying one of these capabilities.
+
+The following IAM resources require you to specify either the **CAPABILITY_IAM** or **CAPABILITY_NAMED_IAM** capability.
+
+1. If you have IAM resources, you can specify either capability.
+
+2. If you have IAM resources with custom names, you must specify `CAPABILITY_NAMED_IAM`.
+
+3. If you don't specify either of these capabilities, CloudFormation returns an `InsufficientCapabilities` error.
+
+```markdown
+AWS::IAM::AccessKey
+
+AWS::IAM::Group
+
+AWS::IAM::InstanceProfile
+
+AWS::IAM::ManagedPolicy
+
+AWS::IAM::Policy
+
+AWS::IAM::Role
+
+AWS::IAM::User
+
+AWS::IAM::UserToGroupAddition
+```
