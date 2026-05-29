@@ -50,4 +50,7 @@ aws cloudformation create-stack --stack-name dev-env-stack \
 aws cloudformation create-change-set --stack-name teejo-stack \
     --capabilities CAPABILITY_NAMED_IAM --change-set-name add-iam-roles-ec2-instance \  --template-body file://main.yaml
 
+## passing parameters at runtime
+aws cloudformation create-stack --stack-name test-stack --parameters ParameterKey="environment",ParameterValue="dev" --template-url https://<BUCKET_NAME>.s3.<REGION>.amazonaws.com
+
 ```
