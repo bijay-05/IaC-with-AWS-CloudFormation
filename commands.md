@@ -48,7 +48,13 @@ aws cloudformation create-stack --stack-name dev-env-stack \
     --capabilities CAPABILITY_NAMED_IAM
 
 aws cloudformation create-change-set --stack-name teejo-stack \
-    --capabilities CAPABILITY_NAMED_IAM --change-set-name add-iam-roles-ec2-instance \  --template-body file://main.yaml
+    --capabilities CAPABILITY_NAMED_IAM --change-set-name add-iam-roles-ec2-instance --template-body file://main.yaml
+
+## analyse nested stack changes as well
+## we are updating parent stack here
+aws cloudformation create-change-set --stack-name teejo-stack \
+    --capabilities CAPABILITY_NAMED_IAM --change-set-name add-iam-roles-ec2-instance --template-body file://main.yaml \
+    --include-nested-stacks
 
 ## passing parameters at runtime
 aws cloudformation create-stack --stack-name test-stack --parameters ParameterKey="environment",ParameterValue="dev" --template-url https://<BUCKET_NAME>.s3.<REGION>.amazonaws.com
